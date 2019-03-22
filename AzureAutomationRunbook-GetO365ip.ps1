@@ -52,34 +52,75 @@ $clientGuid = New-Guid
 $listVersionURL = "$listVersionURL" + "$reqId"
 $listDataURL = "$listDataURL" + "$reqId"
 
+#region Functions
+    Function getOfficeIpVersion ($URL)
+    {
+        try
+        {
+            $version = Invoke-RestMethod $URL
+        }
+        catch
+        {
+            Throw Write-Error "Error retreiving IP list version from REST endpoint."
+
+        }
+        $version = $version | Where-Object instance -eq "Worldwide"
+        return $version
+    }
+    Function getOfficeIpData ($URL, $regex)
+    {
+        try
+        {
+            $data = Invoke-RestMethod $URL
+        }
+        catch
+        {
+            Throw  Write-Error "Error retreiving IP list from REST endpoint."
+        }
+        $data = $data.ips
+        $data = $data -match $regexIPv4
+        return $data
+    }
+
+#endregion
+
+$storedVariables = Get-AzureRmAutomationVariable `
+                                -ResourceGroupName $resourceGroupName `
+                                –AutomationAccountName $AutomationAccountName
+
+$storedVariables = $storedVariables.Name
+
+# Check for stored variables, if missing, create
+If (-not($storedVariables -like "*storedVersion" ))
+{
+    New-AzureRmAutomationVariable `
+                        -ResourceGroupName $resourceGroupName `
+                        -AutomationAccountName $AutomationAccountName `
+                        -Name "storedVersion" `
+                        -Description "Stored version of Office 365 IP list. The version numbers can be found at https://endpoints.office.com/version." `
+                        -Value "" `
+                        -Encrypted $false
+}
+If (-not($storedVariables -like "*storedList" ))
+{
+    New-AzureRmAutomationVariable `
+                        -ResourceGroupName $resourceGroupName `
+                        -AutomationAccountName $AutomationAccountName `
+                        -Name "storedList" `
+                        -Description "Stored list of Office 365 IP list. The list can be found at https://endpoints.office.com/endpoints/worldwide." `
+                        -Value "" `
+                        -Encrypted $false
+}
 
 
 
 # Get the latest version
-try
-{
-    $currentListVersion = Invoke-RestMethod $listVersionURL
-    $currentListVersion = $currentListVersion | Where-Object instance -eq "Worldwide"
-}
-catch
-{
-    Throw "Error calling $listVersionURL."
-}
-
+getOfficeIpVersion -URL $listVersionURL
 
 If ($currentListVersion -gt $storedListVersion)
 {
     # Get the latest list of IPs
-    try
-    {
-        $currentListIPs = Invoke-RestMethod $listDataURL
-        $currentListIPs = $currentListIPs.ips 
-        $currentListIPs = $currentListIPs -match $regexIPv4
-    }
-    catch
-    {
-        Throw "Error calling $listVersionURL."
-    }
+    getOfficeIpData -URL $listDataURL -regex $regexIPv4
 }
 
 
