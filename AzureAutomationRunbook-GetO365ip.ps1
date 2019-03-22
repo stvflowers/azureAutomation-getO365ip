@@ -53,14 +53,25 @@ $listVersionURL = "$listVersionURL" + "$reqId"
 $listDataURL = "$listDataURL" + "$reqId"
 
 #region Functions
+    Function getStoredVariables
+    {
+        try {
+            $storedVariables = Get-AzureRmAutomationVariable `
+                                        -ResourceGroupName $resourceGroupName `
+                                        –AutomationAccountName $AutomationAccountName
+        }
+        catch {
+            Throw "Error retreiving stored variables."
+        }
+        return $storedVariables
+
+    }
     Function getOfficeIpVersion ($URL)
     {
-        try
-        {
+        try {
             $version = Invoke-RestMethod $URL
         }
-        catch
-        {
+        catch {
             Throw Write-Error "Error retreiving IP list version from REST endpoint."
 
         }
@@ -69,12 +80,10 @@ $listDataURL = "$listDataURL" + "$reqId"
     }
     Function getOfficeIpData ($URL, $regex)
     {
-        try
-        {
+        try {
             $data = Invoke-RestMethod $URL
         }
-        catch
-        {
+        catch {
             Throw  Write-Error "Error retreiving IP list from REST endpoint."
         }
         $data = $data.ips
@@ -84,33 +93,79 @@ $listDataURL = "$listDataURL" + "$reqId"
 
 #endregion
 
-$storedVariables = Get-AzureRmAutomationVariable `
-                                -ResourceGroupName $resourceGroupName `
-                                –AutomationAccountName $AutomationAccountName
+# Get stored variables
+try {
+    $storedVariables = getStoredVariables
+}
+catch {
+    Write-Error $_
+    Exit
+}
 
-$storedVariables = $storedVariables.Name
 
 # Check for stored variables, if missing, create
-If (-not($storedVariables -like "*storedVersion" ))
+If (-not($($storedVariables.Name) -like "*storedVersion*" ))
 {
-    New-AzureRmAutomationVariable `
-                        -ResourceGroupName $resourceGroupName `
-                        -AutomationAccountName $AutomationAccountName `
-                        -Name "storedVersion" `
-                        -Description "Stored version of Office 365 IP list. The version numbers can be found at https://endpoints.office.com/version." `
-                        -Value "" `
-                        -Encrypted $false
+    try {
+        New-AzureRmAutomationVariable `
+                    -ResourceGroupName $resourceGroupName `
+                    -AutomationAccountName $AutomationAccountName `
+                    -Name "storedVersion" `
+                    -Description "Stored version of Office 365 IP list. The version numbers can be found at https://endpoints.office.com/version." `
+                    -Value 0 `
+                    -Encrypted $false
+        $storedVariables = getStoredVariables
+    }
+    catch {
+        Write-Error $_
+        Exit
+    }
+
 }
-If (-not($storedVariables -like "*storedList" ))
+If (-not($($storedVariables.Name) -like "*storedList*" ))
 {
-    New-AzureRmAutomationVariable `
-                        -ResourceGroupName $resourceGroupName `
-                        -AutomationAccountName $AutomationAccountName `
-                        -Name "storedList" `
-                        -Description "Stored list of Office 365 IP list. The list can be found at https://endpoints.office.com/endpoints/worldwide." `
-                        -Value "" `
-                        -Encrypted $false
+    try {
+        New-AzureRmAutomationVariable `
+                    -ResourceGroupName $resourceGroupName `
+                    -AutomationAccountName $AutomationAccountName `
+                    -Name "storedList" `
+                    -Description "Stored list of Office 365 IP list. The list can be found at https://endpoints.office.com/endpoints/worldwide." `
+                    -Value "" `
+                    -Encrypted $false
+        $storedVariables = getStoredVariables
+    }
+    catch {
+        Write-Error $_
+        Exit
+    }
+
 }
+
+try {
+    $storedListVersion = ($storedVariables | Where-Object Name -eq "storedVersion").Value
+}
+catch {
+    Write-Error $_
+    Exit
+}
+
+try {
+    $storedListData = ($storedVariables | Where-Object Name -eq "storedList").Value
+}
+catch {
+    Write-Error $_
+    Exit
+}
+
+if ($storedListData -eq "") {
+    # Is empty, intiial seed
+
+}
+else {
+
+    
+}
+
 
 
 
