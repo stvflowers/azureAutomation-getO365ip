@@ -56,14 +56,15 @@ $listDataURL = "$listDataURL" + "$reqId"
     Function getStoredVariables
     {
         try {
-            $storedVariables = Get-AzureRmAutomationVariable `
+            $vars = Get-AzureRmAutomationVariable `
                                         -ResourceGroupName $resourceGroupName `
-                                        –AutomationAccountName $AutomationAccountName
+                                        -AutomationAccountName $AutomationAccountName `
+                                        -ErrorAction Stop
         }
         catch {
             Throw "Error retreiving stored variables."
         }
-        return $storedVariables
+        return $vars
 
     }
     Function getOfficeIpVersion ($URL)
@@ -72,7 +73,7 @@ $listDataURL = "$listDataURL" + "$reqId"
             $version = Invoke-RestMethod $URL
         }
         catch {
-            Throw Write-Error "Error retreiving IP list version from REST endpoint."
+            Throw "Error retreiving IP list version from REST endpoint."
 
         }
         $version = $version | Where-Object instance -eq "Worldwide"
@@ -84,7 +85,7 @@ $listDataURL = "$listDataURL" + "$reqId"
             $data = Invoke-RestMethod $URL
         }
         catch {
-            Throw  Write-Error "Error retreiving IP list from REST endpoint."
+            Throw "Error retreiving IP list from REST endpoint."
         }
         $data = $data.ips
         $data = $data -match $regexIPv4
@@ -98,10 +99,10 @@ try {
     $storedVariables = getStoredVariables
 }
 catch {
-    Write-Error $_
+    Write-Error $_ + "-------"
     Exit
 }
-
+Write-Output "test"
 
 # Check for stored variables, if missing, create
 If (-not($($storedVariables.Name) -like "*storedVersion*" ))
