@@ -17,11 +17,13 @@
         
 #> 
 
+#region Variables
 # Required static variables
 $resourceGroupName = "automation_test"
 $AutomationAccountName = "steve-test"
 $listVersionURL = "https://endpoints.office.com/version"
 $listDataURL = "https://endpoints.office.com/endpoints/worldwide"
+$adminSmtpAddress = "steve.flowers@o-i.com"
 
 
 # regex match IPv4 addresses ignoring IPv6
@@ -32,6 +34,7 @@ $clientGuid = New-Guid
 [string]$reqId = "?clientrequestid=$clientGuid"
 $listVersionURL = "$listVersionURL" + "$reqId"
 $listDataURL = "$listDataURL" + "$reqId"
+#endregion
 
 #region Functions
     Function getStoredVariables
@@ -50,6 +53,14 @@ $listDataURL = "$listDataURL" + "$reqId"
     }
     Function getOfficeIpVersion ($URL)
     {
+        <#
+            .DETAILS
+                Use Microsoft Graph API to get Office 365 IP addresses list version
+            .STATUS
+                Working
+            .OUTPUT
+                Int64
+        #>
         try {
             $version = Invoke-RestMethod $URL
         }
@@ -58,7 +69,7 @@ $listDataURL = "$listDataURL" + "$reqId"
 
         }
         $version = $version | Where-Object instance -eq "Worldwide"
-        return $version
+        return [int]$version.Latest
     }
     Function getOfficeIpData ($URL, $regex)
     {
@@ -82,6 +93,10 @@ $listDataURL = "$listDataURL" + "$reqId"
         $data = $data -match $regexIPv4
         return $data
     }
+    Function notifyAdminOfChange ($adminSmtpAddress, $report)
+    {
+        
+    }
 
 #endregion
 
@@ -91,7 +106,7 @@ try {
     $storedVariables = getStoredVariables
 }
 catch {
-    Write-Error $_ + "-------"
+    $_
     Exit
 }
 #endregion
@@ -147,13 +162,29 @@ catch {
 }
 
 try {
-    $storedListData = ($storedVariables | Where-Object Name -eq "storedList").Value
+    $storedListData = ($storedVariables | Where-Object Name -eq "storedList").Value  | ConvertFrom-Json
 }
 catch {
     Write-Error $_
     Exit
 }
 #endregion
+
+<#
+    If stored list is empty, seed the data and stamp the version.
+    If not, check the version:
+        if 0, set the version and seed the list
+        if > 0, compare stored version to new version
+            if stored version -eq new version, do nothing
+            if stored version -lt new version
+                Get new ip list
+                compare to stored list
+                    Item in new list but not stored? That is an update
+                    Item in stored list but not the new? That is a delete
+                Set azure automation variable with new ip list
+                Set azure automation variable version number
+                Done
+#>
 
 #region Store List Data
 if ($storedListData -eq "") {
@@ -162,9 +193,7 @@ if ($storedListData -eq "") {
     # convert to json
     # store in azure automation variable
     try{
-
         $ipList = getOfficeIpData $listDataURL $regexIPv4
-
     }
     catch{
         $_
@@ -172,7 +201,6 @@ if ($storedListData -eq "") {
     }
 
     try{
-
         $ipListJson = $ipList | ConvertTo-Json
         Set-AzureRmAutomationVariable `
                     -AutomationAccountName $AutomationAccountName `
@@ -180,19 +208,129 @@ if ($storedListData -eq "") {
                     -Name "storedList" `
                     -Value $ipListJson `
                     -Encrypted $false
+        Set-AzureRmAutomationVariable `
+                    -AutomationAccountName $AutomationAccountName `
+                    -ResourceGroupName $resourceGroupName `
+                    -Name "storedVersion" `
+                    -Value $ipVersion `
+                    -Encrypted $false
     }
     catch{
         $_
         Exit
     }
-
 }
 else {
-    # Get old list
+    # Stored list is not empty
     # Get new list
     # Compare
-    # Item in new list but not old? That is an update
-    # Item in old list but not the new? That is a delete
+    # Item in new list but not stored? That is an update
+    # Item in stored list but not the new? That is a delete
+
+    If ($storedListVersion -eq 0){
+        try{
+            $ipList = getOfficeIpData $listDataURL $regexIPv4
+            $newIpVersion = getOfficeIpVersion $listVersionURL
+        }
+        catch{
+            $_
+            Exit
+        }
+    
+        try{
+            $ipListJson = $ipList | ConvertTo-Json
+            Set-AzureRmAutomationVariable `
+                        -AutomationAccountName $AutomationAccountName `
+                        -ResourceGroupName $resourceGroupName `
+                        -Name "storedList" `
+                        -Value $ipListJson `
+                        -Encrypted $false
+            Set-AzureRmAutomationVariable `
+                        -AutomationAccountName $AutomationAccountName `
+                        -ResourceGroupName $resourceGroupName `
+                        -Name "storedVersion" `
+                        -Value $newIpVersion `
+                        -Encrypted $false
+        }
+        catch{
+            $_
+            Exit
+        }
+
+    }
+    elseif ($storedListVersion -eq $newIpVersion){
+        #Nothing to do
+        Write-Output "List has not changed."
+        Exit
+    }
+    elseif ($storedListVersion -lt $newIpVersion){
+        #List has updated
+        try{
+            $ipList = getOfficeIpData $listDataURL $regexIPv4
+            $newIpVersion = getOfficeIpVersion $listVersionURL
+        }
+        catch{
+            $_
+            Exit
+        }
+
+        # Compare stored list to new list of IPs
+        try{
+            $compareResults = Compare-Object -ReferenceObject $storedListData -DifferenceObject $ipList
+        }
+        catch{
+            $_
+            Exit
+        }
+        
+        # report is a pscustomobject that will be used in the email message body
+        $report = @()
+
+        foreach ($i in $compareResults){
+            If ($i.SideIndicator -eq "=>"){
+                $report += [PSCustomObject]@{
+                    IP = $i.InputObject
+                    Type = "Update"
+                }
+            }
+            if ($i.SideIndicator -eq "<="){
+                $report += [PSCustomObject]@{
+                    IP = $i.InputObject
+                    Type = "Delete"
+                }
+            }
+        }
+
+
+
+        
+        # Store new data
+        try{
+            $ipListJson = $ipList | ConvertTo-Json
+            Set-AzureRmAutomationVariable `
+                        -AutomationAccountName $AutomationAccountName `
+                        -ResourceGroupName $resourceGroupName `
+                        -Name "storedList" `
+                        -Value $ipListJson `
+                        -Encrypted $false
+            Set-AzureRmAutomationVariable `
+                        -AutomationAccountName $AutomationAccountName `
+                        -ResourceGroupName $resourceGroupName `
+                        -Name "storedVersion" `
+                        -Value $newIpVersion `
+                        -Encrypted $false
+        }
+        catch{
+            $_
+            Exit
+        }
+
+    }
+    else {
+        Write-Error "Error enumerating list version. Exiting"
+        Exit
+    }
+
 
 }
 #endregion
