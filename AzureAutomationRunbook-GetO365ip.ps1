@@ -13,6 +13,7 @@
     .REQUIREMENTS
         O365 service account with a mailbox.
         O365 service account stored credentials in Azure Automation account.
+        O365 service account with role 'Contributor' on the Automation account.
     .AUTHOR 
         steveflowers@fastmail.com
     .VERSION 
@@ -21,34 +22,45 @@
 #> 
 
 #region Variables
-# Required static variables
+
+##################################################################
+<#
+    EDIT THESE VARIABLES TO MATCH YOUR CONFIGURATION
+#>
 $resourceGroupName = "automation_test"
 $AutomationAccountName = "steve-test"
-$listVersionURL = "https://endpoints.office.com/version"
-$listDataURL = "https://endpoints.office.com/endpoints/worldwide"
+$azureSubscriptionId = "4f8a5d2f-14d4-4e04-9402-f42a1a10d058"
 $adminSmtpAddress = "steve.flowers@o-i.com"
 $azureAutomaionCredentialName = "aa-ga"
 $smtpServer = "smtp.office365.com"
+$notificationEmailSender = "azureautomationga@owens-ill.com"
+$notificationEmailSubject = "Notification of O365 IP address change"
+##################################################################
 
 
+# Required static variables
+$listVersionURL = "https://endpoints.office.com/version"
+$listDataURL = "https://endpoints.office.com/endpoints/worldwide"
 # regex match IPv4 addresses ignoring IPv6
 $regexIPv4 = "^([0-9]{1,3}\.){3}[0-9]{1,3}(\/([0-9]|[1-2][0-9]|3[0-2]))?$"
-
-
 $clientGuid = New-Guid
 [string]$reqId = "?clientrequestid=$clientGuid"
 $listVersionURL = "$listVersionURL" + "$reqId"
 $listDataURL = "$listDataURL" + "$reqId"
 #endregion
 
-#region Get Azure Automation Credential
+#region Get Azure Automation Credential and login
 try{
     $azureAutomationCredential = Get-AutomationPSCredential -Name $azureAutomaionCredentialName
+    Login-AzureRmAccount -Credential $azureAutomationCredential
+    Select-AzureRmSubscription -SubscriptionId $azureSubscriptionId
 }
 catch{
     $_
     Exit
 }
+
+Write-Output "Successfully logged into Azure with service account."
 #endregion
 
 #region Functions
@@ -61,7 +73,7 @@ catch{
                                         -ErrorAction Stop
         }
         catch {
-            Throw "Error retreiving stored variables."
+            Throw $_
         }
         return $vars
 
@@ -129,7 +141,7 @@ catch{
 
         $htmltail = "</body></html>"
 
-        $html = $report | Out-String
+        $html = $report | ConvertTo-Html | Out-String
 
         $body = $htmlhead + $html + $htmltail
 
@@ -137,7 +149,10 @@ catch{
             Send-MailMessage `
                 -Credential $azureAutomationCredential `
                 -To $adminSmtpAddress `
+                -From $notificationEmailSender `
+                -Subject $notificationEmailSubject `
                 -Body $body `
+                -BodyAsHtml `
                 -UseSsl `
                 -SmtpServer $smtpServer
         }
@@ -149,6 +164,7 @@ catch{
 
 #endregion
 
+write-output "Successfully loaded Functions into memory."
 
 #region Get stored variables
 try {
@@ -160,6 +176,7 @@ catch {
 }
 #endregion
 
+Write-Output "Successfully retreived stored variables."
 
 #region Check for stored variables, if missing, create
 If (-not($($storedVariables.Name) -like "*storedVersion*" ))
@@ -200,6 +217,8 @@ If (-not($($storedVariables.Name) -like "*storedList*" ))
 }
 #endregion
 
+Write-Output "Successfully checked for stored variables."
+
 
 #region Initialize stored variables
 try {
@@ -219,12 +238,16 @@ catch {
 }
 #endregion
 
+Write-Output "Successfully initialized stored variables"
+
+#region Store List Data
 <#
     PSeudo code
-    
+
     If stored list is empty, seed the data and stamp the version.
     If not, check the version:
         if 0, set the version and seed the list
+        if equal, do nothing
         if > 0, compare stored version to new version
             if stored version -eq new version, do nothing
             if stored version -lt new version
@@ -236,8 +259,6 @@ catch {
                 Set azure automation variable version number
                 Done
 #>
-
-#region Store List Data
 if ($storedListData -eq "") {
     # If empty, intiial seed of data
     # Get list using function
@@ -278,15 +299,17 @@ else {
     # Item in new list but not stored? That is an update
     # Item in stored list but not the new? That is a delete
 
+    try{
+        $ipList = getOfficeIpData $listDataURL $regexIPv4
+        $newIpVersion = getOfficeIpVersion $listVersionURL
+    }
+    catch{
+        $_
+        Exit
+    }
+
     If ($storedListVersion -eq 0){
-        try{
-            $ipList = getOfficeIpData $listDataURL $regexIPv4
-            $newIpVersion = getOfficeIpVersion $listVersionURL
-        }
-        catch{
-            $_
-            Exit
-        }
+
     
         try{
             $ipListJson = $ipList | ConvertTo-Json
@@ -381,7 +404,7 @@ else {
         Write-Error "Error enumerating list version. Exiting"
         Exit
     }
-
-
 }
 #endregion
+
+Write-output "Completed script."
