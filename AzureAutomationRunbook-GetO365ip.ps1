@@ -5,10 +5,8 @@
     .DESCRIPTION 
         Calls to the below endoint return the version of IP address list
         https://endpoints.office.com/version?clientrequestid=<client request guid>
-        
         Calls to the below endpoint return the actul list of IP address list
         https://endpoints.office.com/endpoints/worldwide?clientrequestid=<client request guid>
-
         Check version of the list. If current list version is greater than the stored version, perform the below work:
     .REQUIREMENTS
         O365 service account with a mailbox.
