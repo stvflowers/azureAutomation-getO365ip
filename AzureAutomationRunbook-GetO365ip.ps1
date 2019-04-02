@@ -1,7 +1,6 @@
 <# 
     .SYNOPSIS 
         Use Microsoft Graph API to check for changes in the Office 365 Ip Addresses.
-
     .DESCRIPTION 
         Calls to the below endoint return the version of IP address list
         https://endpoints.office.com/version?clientrequestid=<client request guid>
