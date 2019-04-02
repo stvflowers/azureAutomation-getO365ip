@@ -3,9 +3,9 @@
 
 .VERSION 1.0
 
-.GUID 04635c7f-df14-4e52-a166-55154ffd246d
+.GUID c43d01a4-b265-48bf-9823-8e4c3a4d5df7
 
-.AUTHOR steveflowers@fastmail.com
+.AUTHOR steve
 
 .COMPANYNAME 
 
@@ -26,21 +26,18 @@
 .EXTERNALSCRIPTDEPENDENCIES 
 
 .RELEASENOTES
-    SYNOPSIS 
-        Use Microsoft Graph API to check for changes in the Office 365 Ip Addresses.
-    DESCRIPTION 
-        Calls to the below endoint return the version of IP address list
-        https://endpoints.office.com/version?clientrequestid=<client request guid>
-        Calls to the below endpoint return the actul list of IP address list
-        https://endpoints.office.com/endpoints/worldwide?clientrequestid=<client request guid>
-        Check version of the list. If current list version is greater than the stored version, perform the below work:
-    REQUIREMENTS
-        O365 service account with a mailbox.
-        O365 service account stored credentials in Azure Automation account.
-        O365 service account with role 'Contributor' on the Automation account.
-.DESCRIPTION 
-    Get the current list of O365 IP addresses 
+
+
 #>
+
+<# 
+
+.DESCRIPTION 
+ Get the current list of O365 IP addresses 
+
+#> 
+Param()
+
 
 #region Variables
 
@@ -437,3 +434,6 @@ else {
 #endregion
 
 Write-output "Completed script."
+
+
+
