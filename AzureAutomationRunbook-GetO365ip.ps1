@@ -10,6 +10,9 @@
         https://endpoints.office.com/endpoints/worldwide?clientrequestid=<client request guid>
 
         Check version of the list. If current list version is greater than the stored version, perform the below work:
+    .REQUIREMENTS
+        O365 service account with a mailbox.
+        O365 service account stored credentials in Azure Automation account.
     .AUTHOR 
         steveflowers@fastmail.com
     .VERSION 
@@ -24,6 +27,8 @@ $AutomationAccountName = "steve-test"
 $listVersionURL = "https://endpoints.office.com/version"
 $listDataURL = "https://endpoints.office.com/endpoints/worldwide"
 $adminSmtpAddress = "steve.flowers@o-i.com"
+$azureAutomaionCredentialName = "aa-ga"
+$smtpServer = "smtp.office365.com"
 
 
 # regex match IPv4 addresses ignoring IPv6
@@ -34,6 +39,16 @@ $clientGuid = New-Guid
 [string]$reqId = "?clientrequestid=$clientGuid"
 $listVersionURL = "$listVersionURL" + "$reqId"
 $listDataURL = "$listDataURL" + "$reqId"
+#endregion
+
+#region Get Azure Automation Credential
+try{
+    $azureAutomationCredential = Get-AutomationPSCredential -Name $azureAutomaionCredentialName
+}
+catch{
+    $_
+    Exit
+}
 #endregion
 
 #region Functions
@@ -95,7 +110,41 @@ $listDataURL = "$listDataURL" + "$reqId"
     }
     Function notifyAdminOfChange ($adminSmtpAddress, $report)
     {
-        
+        $htmlhead = "<html>
+				<style>
+				BODY{font-family: Arial; font-size: 8pt;}
+				H1{font-size: 22px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+				H2{font-size: 18px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+				H3{font-size: 16px; font-family: 'Segoe UI Light','Segoe UI','Lucida Grande',Verdana,Arial,Helvetica,sans-serif;}
+				TABLE{border: 1px solid black; border-collapse: collapse; font-size: 8pt;}
+				TH{border: 1px solid #969595; background: #dddddd; padding: 5px; color: #000000;}
+				TD{border: 1px solid #969595; padding: 5px; }
+				td.pass{background: #B7EB83;}
+				td.warn{background: #FFF275;}
+				td.fail{background: #FF2626; color: #ffffff;}
+				td.info{background: #85D4FF;}
+				</style>
+				<body>
+                <p>Office 365 IPs have been changed!</p>"
+
+        $htmltail = "</body></html>"
+
+        $html = $report | Out-String
+
+        $body = $htmlhead + $html + $htmltail
+
+        try{
+            Send-MailMessage `
+                -Credential $azureAutomationCredential `
+                -To $adminSmtpAddress `
+                -Body $body `
+                -UseSsl `
+                -SmtpServer $smtpServer
+        }
+        catch{
+            $_
+            Exit
+        }
     }
 
 #endregion
@@ -171,6 +220,8 @@ catch {
 #endregion
 
 <#
+    PSeudo code
+    
     If stored list is empty, seed the data and stamp the version.
     If not, check the version:
         if 0, set the version and seed the list
@@ -302,8 +353,6 @@ else {
         }
 
 
-
-        
         # Store new data
         try{
             $ipListJson = $ipList | ConvertTo-Json
@@ -325,6 +374,8 @@ else {
             Exit
         }
 
+        notifyAdminOfChange -adminSmtpAddress $adminSmtpAddress -report $report
+
     }
     else {
         Write-Error "Error enumerating list version. Exiting"
@@ -334,21 +385,3 @@ else {
 
 }
 #endregion
-
-
-
-
-# Get the latest version
-getOfficeIpVersion -URL $listVersionURL
-
-If ($currentListVersion -gt $storedListVersion)
-{
-    # Get the latest list of IPs
-    getOfficeIpData -URL $listDataURL -regex $regexIPv4
-}
-
-
-
-
-
-
