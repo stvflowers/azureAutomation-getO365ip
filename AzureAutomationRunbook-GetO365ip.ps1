@@ -18,7 +18,6 @@
         steveflowers@fastmail.com
     .VERSION 
         20190402
-        
 #> 
 
 #region Variables
@@ -27,13 +26,13 @@
 <#
     EDIT THESE VARIABLES TO MATCH YOUR CONFIGURATION
 #>
-$resourceGroupName = "automation_test"
-$AutomationAccountName = "steve-test"
-$azureSubscriptionId = "4f8a5d2f-14d4-4e04-9402-f42a1a10d058"
-$adminSmtpAddress = "steve.flowers@o-i.com"
-$azureAutomaionCredentialName = "aa-ga"
+$resourceGroupName = ""
+$AutomationAccountName = ""
+$azureSubscriptionId = ""
+$adminSmtpAddress = ""
+$azureAutomaionCredentialName = ""
 $smtpServer = "smtp.office365.com"
-$notificationEmailSender = "azureautomationga@owens-ill.com"
+$notificationEmailSender = ""
 $notificationEmailSubject = "Notification of O365 IP address change"
 ##################################################################
 
