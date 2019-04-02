@@ -65,6 +65,14 @@ Write-Output "Successfully logged into Azure with service account."
 #region Functions
     Function getStoredVariables
     {
+        <#
+            .DETAILS
+                Get stored Azure Automation variables
+            .STATUS
+                Working
+            .OUTPUT
+                Object array
+        #>
         try {
             $vars = Get-AzureRmAutomationVariable `
                                         -ResourceGroupName $resourceGroupName `
