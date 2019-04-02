@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package  xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>    
+    <id>AzureAutomationRunbook-GetO365ip.ps1</id>
+    <version>1.0</version>
+    <title>azureAutomation-getO365ip</title>
+    <authors>Stve Flowers</authors>
+    <owners>Steve Flowers</owners>
+    <licenseUrl>http://thoughtreplica.com</licenseUrl>
+    <projectUrl>https://github.com/toledotown/azureAutomation-getO365ip</projectUrl>
+    <iconUrl>https://farm1.staticflickr.com/541/20308055572_131bd3cdde_b.jpg</iconUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Get the current list of O365 IP addresses</description>
+    <releaseNotes></releaseNotes>
+    <copyright></copyright>
+    <tags>azure-automation-runbooks</tags>
+    <dependencies></dependencies>
+    <summary>Receive email alerts when O365 service IPs change.</summary>
+  </metadata>
+  <files>
+	<file src="AzureAutomationRunbook-GetO365ip.ps1" target="" />
+  </files>
+</package>
