@@ -26,37 +26,44 @@
 .EXTERNALSCRIPTDEPENDENCIES 
 
 .RELEASENOTES
-    SYNOPSIS 
+
         Use Microsoft Graph API to check for changes in the Office 365 Ip Addresses.
-    DESCRIPTION 
         Calls to the below endoint return the version of IP address list
         https://endpoints.office.com/version?clientrequestid=<client request guid>
         Calls to the below endpoint return the actul list of IP address list
         https://endpoints.office.com/endpoints/worldwide?clientrequestid=<client request guid>
         Check version of the list. If current list version is greater than the stored version, perform the below work:
-    REQUIREMENTS
-        O365 service account with a mailbox.
-        O365 service account stored credentials in Azure Automation account.
-        O365 service account with role 'Contributor' on the Automation account.
+    
+        REQUIREMENTS
+        Office 365 service account with a mailbox.
+        Office 365 service account stored credentials in Azure Automation account.
+        Office 365 service account with role 'Contributor' on the Automation account.
+
+
 .DESCRIPTION 
     Get the current list of O365 IP addresses 
 #>
 
 #region Variables
-
-##################################################################
+####################################################################################################################################
+####################################################################################################################################
+####################################################################################################################################
 <#
     EDIT THESE VARIABLES TO MATCH YOUR CONFIGURATION
 #>
-$resourceGroupName = ""
-$AutomationAccountName = ""
-$azureSubscriptionId = ""
-$adminSmtpAddress = ""
-$azureAutomaionCredentialName = ""
-$smtpServer = "smtp.office365.com"
-$notificationEmailSender = ""
+
+$resourceGroupName = "" # Name of the Azure resource group that contains the automation account
+$AutomationAccountName = "" # Name of the Azure automation account
+$azureSubscriptionId = "" # Id of the Azure subscription hosting the automation account
+$adminSmtpAddress = "" # smtp address of the recipient of alerts
+$azureAutomaionCredentialName = "" # Name of credential stored in Azure automation for O365 service account
+$notificationEmailSender = "" # this must be the O365 service account
 $notificationEmailSubject = "Notification of O365 IP address change"
-##################################################################
+$smtpServer = "smtp.office365.com"
+
+####################################################################################################################################
+####################################################################################################################################
+####################################################################################################################################
 
 
 # Required static variables
